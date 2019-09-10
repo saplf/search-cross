@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Search Cross
 // @namespace    https://github.com/saplf/search-cross
-// @version      0.1
+// @version      0.2
 // @description  不同搜索引擎间的切换，自用
 // @author       saplf
 // @license      GPL-3.0
@@ -123,6 +123,7 @@ function appendStyles() {
   z-index: ${setting.zIndex + 1};
   color: white;
   font-size: 12px;
+  box-sizing: content-box;
 
   display: flex;
   flex-direction: column;
