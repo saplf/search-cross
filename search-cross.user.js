@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Search Cross
 // @namespace    https://github.com/saplf/search-cross
-// @version      0.2
+// @version      0.3
 // @description  不同搜索引擎间的切换，自用
 // @author       saplf
 // @license      GPL-3.0
 // @supportURL   https://github.com/saplf/search-cross
+// @home-url     https://greasyfork.org/zh-CN/scripts/389989-search-cross
 // @match        *://www.baidu.com/s?*
 // @match        *://www.google.com/search?*
 // @match        *://cn.bing.com/search?*
@@ -13,6 +14,7 @@
 // @match        *://github.com/search?*
 // @match        *://www.zhihu.com/search?*
 // @match        *://search.bilibili.com/*
+// @note         2020.01.10-v0.3 修复github下样式问题
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -129,7 +131,6 @@ function appendStyles() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 32px;
   padding: 0 10px;
   transition: background .3s;
 }
