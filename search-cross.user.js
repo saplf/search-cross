@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Search Cross
 // @namespace    https://github.com/saplf/search-cross
-// @version      0.4
+// @version      0.5
 // @description  不同搜索引擎间的切换，自用
 // @author       saplf
 // @license      GPL-3.0
@@ -17,10 +17,13 @@
 // @match        *://zh.wikipedia.org/wiki/*
 // @note         2020.01.10-v0.3 修复github下样式问题
 // @note         2020.06.29-v0.4 切换图标源，减小源码体积；添加中文维基
+// @note         2020.06.29-v0.5 由于 Github 的安全策略，外部样式代码改由代码下载
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_info
+// @grant        GM_xmlhttpRequest
+// @connect      at.alicdn.com
 // @run-at       document-end
 // ==/UserScript==
 
@@ -162,16 +165,8 @@ function appendStyles() {
 }
 
 function appendElement() {
-    var head = document.head;
-    if (!head) return;
-
     var body = document.body;
     if (!body) return;
-    var iconStyle = document.createElement('link');
-    iconStyle.type = 'text/css';
-    iconStyle.rel = 'stylesheet';
-    iconStyle.href = '//at.alicdn.com/t/font_1911184_h0w7n7n9yfk.css';
-    body.appendChild(iconStyle);
 
     var panel = document.createElement('div');
     panel.id = 'sc-panel';
@@ -233,9 +228,20 @@ function queryParam() {
     return location.href.match(current.match)[0];
 }
 
+function appendExtraCss(url) {
+    GM_xmlhttpRequest({
+        method: 'GET',
+        url: url,
+        onload: (args) => {
+            GM_addStyle(args.responseText);
+        },
+    });
+}
+
 (function() {
     'use strict';
 
     appendStyles();
     appendElement();
+    appendExtraCss('//at.alicdn.com/t/font_1911184_h0w7n7n9yfk.css');
 })();
