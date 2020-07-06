@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Search Cross
 // @namespace    https://github.com/saplf/search-cross
-// @version      0.5
+// @version      0.6
 // @description  不同搜索引擎间的切换，自用
 // @author       saplf
 // @license      GPL-3.0
@@ -9,15 +9,20 @@
 // @home-url     https://greasyfork.org/zh-CN/scripts/389989-search-cross
 // @match        *://www.baidu.com/s?*
 // @match        *://www.google.com/search?*
-// @match        *://cn.bing.com/search?*
-// @match        *://www.so.com/*
+// @match        *://www.bing.com/search?*
+// @match        *://www.so.com/s?*
 // @match        *://github.com/search?*
 // @match        *://www.zhihu.com/search?*
 // @match        *://search.bilibili.com/*
 // @match        *://zh.wikipedia.org/wiki/*
+// @match        *://www.sogou.com/web?*
+// @match        *://www.douban.com/search?*
+// @match        *://mijisou.com/?*
+// @match        *://duckduckgo.com/?*
 // @note         2020.01.10-v0.3 修复github下样式问题
 // @note         2020.06.29-v0.4 切换图标源，减小源码体积；添加中文维基
 // @note         2020.06.29-v0.5 由于 Github 的安全策略，外部样式代码改由代码下载
+// @note         2020.06.29-v0.6 添加部分搜索引擎
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -57,16 +62,10 @@ var engines = {
         url: 'https://www.google.com/search?q={q}',
         match: /(?<=\Wq=).*?(?=$|(?=&))/,
     },
-    'cn.bing.com': {
+    'www.bing.com': {
         name: 'Bing',
         icon: 'sc-bing',
         url: 'https://cn.bing.com/search?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
-    },
-    'www.so.com': {
-        name: '360',
-        icon: 'sc-360',
-        url: 'https://www.so.com/s?q={q}',
         match: /(?<=\Wq=).*?(?=$|(?=&))/,
     },
     'github.com': {
@@ -92,6 +91,36 @@ var engines = {
         icon: 'sc-wiki',
         url: 'https://zh.wikipedia.org/wiki/{q}',
         match: /(?<=\Wwiki\/).*/,
+    },
+    'www.so.com': {
+        name: '360',
+        icon: 'sc-360',
+        url: 'https://www.so.com/s?q={q}',
+        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+    },
+    'www.sogou.com': {
+        name: '搜狗',
+        icon: 'sc-sougou',
+        url: 'https://www.sogou.com/web?query={q}',
+        match: /(?<=\Wquery=).*?(?=$|(?=&))/,
+    },
+    'www.douban.com': {
+        name: '豆瓣',
+        icon: 'sc-douban',
+        url: 'https://www.douban.com/search?q={q}',
+        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+    },
+    'mijisou.com': {
+        name: '秘迹',
+        icon: 'sc-mj',
+        url: 'https://mijisou.com/?q={q}',
+        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+    },
+    'duckduckgo.com': {
+        name: 'Duck',
+        icon: 'sc-ddg',
+        url: 'https://duckduckgo.com/?q={q}',
+        match: /(?<=\Wq=).*?(?=$|(?=&))/,
     },
 };
 
@@ -243,5 +272,5 @@ function appendExtraCss(url) {
 
     appendStyles();
     appendElement();
-    appendExtraCss('//at.alicdn.com/t/font_1911184_h0w7n7n9yfk.css');
+    appendExtraCss('//at.alicdn.com/t/font_1911184_lasqlk50poo.css');
 })();
