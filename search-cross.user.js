@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Search Cross
 // @namespace    https://github.com/saplf/search-cross
-// @version      0.6
+// @version      0.7
 // @description  不同搜索引擎间的切换，自用
 // @author       saplf
 // @license      GPL-3.0
@@ -19,10 +19,12 @@
 // @match        *://www.douban.com/search?*
 // @match        *://mijisou.com/?*
 // @match        *://duckduckgo.com/?*
+// @match        *://s.taobao.com/search?*
 // @note         2020.01.10-v0.3 修复github下样式问题
 // @note         2020.06.29-v0.4 切换图标源，减小源码体积；添加中文维基
 // @note         2020.06.29-v0.5 由于 Github 的安全策略，外部样式代码改由代码下载
 // @note         2020.06.29-v0.6 添加部分搜索引擎
+// @note         2020.07.27-v0.7 添加部分搜索引擎；添加设置面板
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -122,13 +124,23 @@ var engines = {
         url: 'https://duckduckgo.com/?q={q}',
         match: /(?<=\Wq=).*?(?=$|(?=&))/,
     },
+    's.taobao.com': {
+        name: '淘宝',
+        icon: 'sc-taobao',
+        url: 'https://s.taobao.com/search?q={q}',
+        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+    },
 };
+var enginesArray = Object.entries(engines);
 
-var configCached = GM_getValue('config', config);
-GM_setValue('config', configCached);
-var setting = Object.assign(config.default, configCached.default, configCached[location.host]);
+// var configCached = GM_getValue('config', config);
+// GM_setValue('config', configCached);
+// var setting = Object.assign(config.default, configCached.default, configCached[location.host]);
 // engines = GM_getValue('sites', engines);
 // GM_setValue('sites', engines);
+var setting = config.default;
+
+var enabledSites = GM_getValue('enabledSites', enginesArray.map(function (it) { return it[0] }));
 
 function appendStyles() {
     var isLeft = setting.position === 'left';
@@ -138,7 +150,7 @@ function appendStyles() {
   position: fixed;
   ${setting.position}: ${setting.peekSize}px;
   top: ${setting.top};
-  padding: 0 20px 0 60px;
+  padding: 0 20px 0 80px;
   transform: translate(${offsetSignal}100%, -50%);
   transition: all .2s;
   height: ${setting.height}px;
@@ -190,56 +202,323 @@ function appendStyles() {
   font-size: 2em;
   margin-bottom: 2px;
 }
+
+#sc-panel .scf-setting {
+  position: absolute;
+  top: 50%;
+  left: 48px;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, .6);
+  transition: all .2s;
+  cursor: pointer;
+  z-index: ${setting.zIndex + 1};
+  padding: 4px;
+  border-radius: 50%;
+}
+
+#sc-panel .scf-setting:hover {
+  color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, .2);
+}
+
+#sc-panel .sc-setting {
+  font-size: 1.4em;
+}
+
+#sc-panel-setting {
+  z-index: ${setting.zIndex + 2};
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: rgba(0, 0, 0, .6);
+  opacity: 0;
+  transition: opacity .2s;
+}
+
+#sc-panel-setting.active {
+  opacity: 1;
+}
+
+#sc-panel-setting.none {
+  display: none;
+}
+
+#sc-setting-box {
+  position: absolute;
+  top: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 500px;
+  height: 420px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.6);
+
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+#sc-setting-box h3 {
+  flex: 0 0 auto;
+
+  box-sizing: border-box;
+  font-weight: normal;
+  font-size: x-large;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+#sc-tab {
+  flex-grow: 1;
+  overflow: auto;
+}
+
+#sc-tab .sc-list {
+  padding: 16px;
+}
+
+#sc-tab .sc-list li {
+  padding: 8px 4px;
+  display: flex;
+  align-items: baseline;
+  transition: background-color .2s;
+}
+
+#sc-tab .sc-list li:hover {
+  background-color: rgba(0, 0, 0, .1);
+}
+
+#sc-tab .sc-list label {
+  flex-grow: 1;
+  display: inline-block;
+  margin: 0 4px;
+}
+
+#sc-tab .sc-list .sc-name {
+  margin-left: 2px;
+}
+
+#sc-setting-box .btn-panel {
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 10px 16px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+}
+
+#sc-setting-box .btn-panel > * {
+  margin: 0 4px;
+}
 `);
 }
 
-function appendElement() {
+function appendPanel() {
     var body = document.body;
     if (!body) return;
 
-    var panel = document.createElement('div');
-    panel.id = 'sc-panel';
-    // panel.className = 'active';
+    var panel = generateEle('div', {
+        id: 'sc-panel',
+        // className: 'active',
+    });
 
     // panel triggle
-    var triggle = document.createElement('div');
+    var triggle = generateEle('div', { id: 'sc-panel-triggle' });
     var timerEnter = null;
     var timerLeave = null;
-    var funcEnter = () => addClassName(panel, 'active');
-    var funcLeave = () => removeClassName(panel, 'active');
-    triggle.id = 'sc-panel-triggle';
-    panel.onmouseenter = () => {
+    var funcEnter = function() { addClassName(panel, 'active'); };
+    var funcLeave = function() { removeClassName(panel, 'active'); };
+    panel.onmouseenter = function() {
         clearTimeout(timerLeave);
         timerEnter = setTimeout(funcEnter, setting.delayEnter);
     }
-    panel.onmouseleave = () => {
+    panel.onmouseleave = function() {
         clearTimeout(timerEnter);
         timerLeave = setTimeout(funcLeave, setting.delayLeave);
     }
     panel.appendChild(triggle);
 
     // engines
-    Object.entries(engines).forEach(entry => {
+    enginesArray.forEach(function(entry) {
         var key = entry[0];
-        if (key === location.host) return;
+        if (key === location.host || !enabledSites.includes(key)) return;
         var engine = entry[1];
-        var ele = document.createElement('a');
-        ele.className = 'sc-panel-item';
-        ele.setAttribute('href', engine.url.replace(/\{q\}/, queryParam()));
-        var iconI = document.createElement('i');
-        iconI.className = 'scf ' + engine.icon;
+        var ele = generateEle('a', {
+            className: 'sc-panel-item',
+            href: engine.url.replace(/\{q\}/, queryParam()),
+        });
+        var iconI = generateEle('i', { className: 'scf ' + engine.icon });
+        var name = generateEle('span', { innerText: engine.name });
         ele.appendChild(iconI);
-        var name = document.createElement('span');
-        name.innerText = engine.name;
         ele.appendChild(name);
         panel.appendChild(ele);
     });
 
+    // setting trigger
+    var settingBox = generateEle('div', {
+        className: 'scf-setting',
+        onclick: showPanelSetting,
+    });
+    var settingIcon = generateEle('i', { className: 'scf sc-setting' });
+    settingBox.appendChild(settingIcon);
+    panel.appendChild(settingBox);
+
     body.appendChild(panel);
 }
 
+function appendPanelSetting() {
+    var body = document.body;
+    if (!body) return;
+
+    var panel = document.getElementById('sc-panel-setting');
+    if (panel) return;
+
+    panel = generateEle('div', {
+        id: 'sc-panel-setting',
+        // className: 'active',
+        onclick: hidePanelSetting,
+    });
+
+    panel.addEventListener('transitionend', function () {
+        if (panel.getAttribute('hide')) {
+            addClassName(panel, 'none');
+        }
+    });
+
+    var box = generateEle('div', {
+        id: 'sc-setting-box',
+        onclick: function (e) { e.stopPropagation() },
+    });
+
+    var title = generateEle('h3', {
+        innerText: '搜索引擎配置',
+    });
+    var settingTab = generateEle('div', { id: 'sc-tab' });
+
+    var listBox = generateEle('ul', {
+        className: 'sc-list',
+    });
+    enginesArray.forEach(function(entry, index) {
+        var key = entry[0];
+        var item = entry[1];
+        var cusId = 'sc-check-' + index;
+        var listItem = generateEle('li', {});
+
+        var checkbox = generateEle('input', {
+            className: 'sc-site-enabled',
+            type: 'checkbox',
+            name: key,
+            id: cusId,
+        });
+        var label = generateEle('label', {});
+        label.setAttribute('for', cusId);
+        var icon = generateEle('i', { className: 'scf ' + item.icon });
+        var name = generateEle('span', {
+            className: 'sc-name',
+            innerText: item.name,
+        });
+        var suffix = generateEle('a', {
+            className: 'sc-href',
+            target: '_blank',
+            href: 'https://' + key,
+            innerText: key,
+        });
+
+        label.appendChild(icon);
+        label.appendChild(name);
+        listItem.appendChild(checkbox);
+        listItem.appendChild(label);
+        listItem.appendChild(suffix);
+        listBox.appendChild(listItem);
+    });
+    settingTab.appendChild(listBox);
+
+    var buttonPanel = generateEle('div', { className: 'btn-panel' });
+    var hint = generateEle('span', {
+        innerText: '保存后刷新生效',
+    });
+    var saveBtn = generateEle('button', {
+        innerText: '仅保存',
+        onclick: function () {
+            storeEnabledSites(panel);
+            hidePanelSetting();
+        },
+    });
+    var refreshBtn = generateEle('button', {
+        innerText: '保存并刷新',
+        onclick: function () {
+            storeEnabledSites(panel);
+            hidePanelSetting();
+            location.reload();
+        },
+    });
+    buttonPanel.appendChild(hint);
+    buttonPanel.appendChild(saveBtn);
+    buttonPanel.appendChild(refreshBtn);
+
+    box.appendChild(title);
+    box.appendChild(settingTab);
+    box.appendChild(buttonPanel);
+    panel.appendChild(box);
+    body.appendChild(panel);
+    return panel;
+}
+
+function assignEnabledSites(panel) {
+    var list = panel.getElementsByClassName('sc-site-enabled');
+    for (var i = 0; i < list.length; i++) {
+        var input = list[i];
+        input.checked = enabledSites.includes(input.name);
+    }
+}
+
+function storeEnabledSites(panel) {
+    var list = panel.getElementsByClassName('sc-site-enabled');
+    var results = [];
+    for (var i = 0; i < list.length; i++) {
+        var input = list[i];
+        if (input.checked) {
+            results.push(input.name);
+        }
+    }
+    GM_setValue('enabledSites', results);
+}
+
+function showPanelSetting() {
+    var panel = document.getElementById('sc-panel-setting');
+    if (!panel) {
+        panel = appendPanelSetting();
+    }
+    assignEnabledSites(panel);
+    panel.setAttribute('hide', '');
+    removeClassName(panel, 'none');
+    setTimeout(function () {
+        addClassName(panel, 'active');
+    }, 0);
+}
+
+function hidePanelSetting() {
+    var panel = document.getElementById('sc-panel-setting');
+    if (!panel) {
+        panel = appendPanelSetting();
+    }
+    panel.setAttribute('hide', '1');
+    removeClassName(panel, 'active');
+}
+
+function generateEle(name, properties) {
+    var ele = document.createElement(name);
+    Object.entries(properties).forEach(function(it) {
+        ele[it[0]] = it[1];
+    });
+    return ele;
+}
+
 function addClassName(ele, name) {
-    var classes = (ele.className || '').split(' ').filter(it => it);
+    var classes = (ele.className || '').split(' ').filter(function (it) { return it });
     if (!classes.includes(name)) {
         classes.push(name);
     }
@@ -247,7 +526,21 @@ function addClassName(ele, name) {
 }
 
 function removeClassName(ele, name) {
-    var classes = (ele.className || '').split(' ').filter(it => it && it !== name);
+    var classes = (ele.className || '')
+        .split(' ')
+        .filter(function (it) { return it && it !== name });
+    ele.className = classes.join(' ');
+}
+
+function toggleClassName(ele, name) {
+    var classes = (ele.className || '')
+        .split(' ')
+        .filter(function (it) { return it });
+    if (classes.includes(name)) {
+        classes = classes.filter(function (it) { return it && it !== name });
+    } else {
+        classes.push(name);
+    }
     ele.className = classes.join(' ');
 }
 
@@ -261,7 +554,7 @@ function appendExtraCss(url) {
     GM_xmlhttpRequest({
         method: 'GET',
         url: url,
-        onload: (args) => {
+        onload(args) {
             GM_addStyle(args.responseText);
         },
     });
@@ -269,8 +562,9 @@ function appendExtraCss(url) {
 
 (function() {
     'use strict';
+    if (!enabledSites.includes(location.host)) return;
 
     appendStyles();
-    appendElement();
-    appendExtraCss('//at.alicdn.com/t/font_1911184_lasqlk50poo.css');
+    appendPanel();
+    appendExtraCss('//at.alicdn.com/t/font_1911184_1ib7wqdqydk.css');
 })();
