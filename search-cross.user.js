@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Search Cross
 // @namespace    https://github.com/saplf/search-cross
-// @version      0.7
+// @version      0.8
 // @description  不同搜索引擎间的切换，自用
 // @author       saplf
 // @license      GPL-3.0
@@ -25,6 +25,7 @@
 // @note         2020.06.29-v0.5 由于 Github 的安全策略，外部样式代码改由代码下载
 // @note         2020.06.29-v0.6 添加部分搜索引擎
 // @note         2020.07.27-v0.7 添加部分搜索引擎；添加设置面板
+// @note         2020.09.28-v0.8 修复 Safari 浏览器不支持反向预查正则的 bug
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -56,79 +57,79 @@ var engines = {
         name: '百度',
         icon: 'sc-baidu',
         url: 'https://www.baidu.com/s?wd={q}',
-        match: /(?<=\Wwd=).*?(?=$|(?=&))/,
+        match: /(?:wd=)([^&]+)(?=&|$)/,
     },
     'www.google.com': {
         name: 'Google',
         icon: 'sc-google',
         url: 'https://www.google.com/search?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+        match: /(?:q=)([^&]+)(?=&|$)/,
     },
     'www.bing.com': {
         name: 'Bing',
         icon: 'sc-bing',
         url: 'https://cn.bing.com/search?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+        match: /(?:q=)([^&]+)(?=&|$)/,
     },
     'github.com': {
         name: 'GitHub',
         icon: 'sc-github',
         url: 'https://github.com/search?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+        match: /(?:q=)([^&]+)(?=&|$)/,
     },
     'www.zhihu.com': {
         name: '知乎',
         icon: 'sc-zhihu',
         url: 'https://www.zhihu.com/search?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+        match: /(?:q=)([^&]+)(?=&|$)/,
     },
     'search.bilibili.com': {
         name: 'bilibili',
         icon: 'sc-bilibili',
         url: 'https://search.bilibili.com/all?keyword={q}',
-        match: /(?<=\Wkeyword=).*?(?=$|(?=&))/,
+        match: /(?:keyword=)([^&]+)(?=&|$)/,
     },
     'zh.wikipedia.org': {
         name: '维基中文',
         icon: 'sc-wiki',
         url: 'https://zh.wikipedia.org/wiki/{q}',
-        match: /(?<=\Wwiki\/).*/,
+        match: /(?:wiki\/)([^?&]+)(?=&|$|\?)/,
     },
     'www.so.com': {
         name: '360',
         icon: 'sc-360',
         url: 'https://www.so.com/s?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+        match: /(?:q=)([^&]+)(?=&|$)/,
     },
     'www.sogou.com': {
         name: '搜狗',
         icon: 'sc-sougou',
         url: 'https://www.sogou.com/web?query={q}',
-        match: /(?<=\Wquery=).*?(?=$|(?=&))/,
+        match: /(?:query=)([^&]+)(?=&|$)/,
     },
     'www.douban.com': {
         name: '豆瓣',
         icon: 'sc-douban',
         url: 'https://www.douban.com/search?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+        match: /(?:q=)([^&]+)(?=&|$)/,
     },
     'mijisou.com': {
         name: '秘迹',
         icon: 'sc-mj',
         url: 'https://mijisou.com/?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+        match: /(?:q=)([^&]+)(?=&|$)/,
     },
     'duckduckgo.com': {
         name: 'Duck',
         icon: 'sc-ddg',
         url: 'https://duckduckgo.com/?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+        match: /(?:q=)([^&]+)(?=&|$)/,
     },
     's.taobao.com': {
         name: '淘宝',
         icon: 'sc-taobao',
         url: 'https://s.taobao.com/search?q={q}',
-        match: /(?<=\Wq=).*?(?=$|(?=&))/,
+        match: /(?:q=)([^&]+)(?=&|$)/,
     },
 };
 var enginesArray = Object.entries(engines);
@@ -140,7 +141,16 @@ var enginesArray = Object.entries(engines);
 // GM_setValue('sites', engines);
 var setting = config.default;
 
-var enabledSites = GM_getValue('enabledSites', enginesArray.map(function (it) { return it[0] }));
+// 标记用于重置存储数据的计数量
+var appClearCounter = 1;
+var cacheClearCounter = GM_getValue('cacheClearCounter', 0);
+var enabledSites;
+if (cacheClearCounter < appClearCounter) {
+    GM_setValue('cacheClearCounter', appClearCounter);
+    enabledSites = enginesArray.map(function (it) { return it[0] });
+} else {
+    enabledSites = GM_getValue('enabledSites', enginesArray.map(function (it) { return it[0] }));
+}
 
 function appendStyles() {
     var isLeft = setting.position === 'left';
@@ -547,7 +557,8 @@ function toggleClassName(ele, name) {
 function queryParam() {
     var current = engines[location.host];
     if (!current) return '';
-    return location.href.match(current.match)[0];
+    var result = location.href.match(current.match);
+    return result && (result[1] || result[0]);
 }
 
 function appendExtraCss(url) {
